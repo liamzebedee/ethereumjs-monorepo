@@ -105,7 +105,7 @@ tape('Precompiles: hardfork availability', (t) => {
     let vm = new VM({ common: commonByzantium })
     vm.linkPrecompile(CUSTOM_PRECOMPILE_Address, customPrecompile)
     
-    let result = await vm.runCall({
+    const result = await vm.runCall({
       caller: Address.zero(),
       gasLimit: new BN(0xffffffffff),
       to: CUSTOM_PRECOMPILE_Address,
