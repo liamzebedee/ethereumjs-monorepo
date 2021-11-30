@@ -10,7 +10,7 @@ import { default as runBlock, RunBlockOpts, RunBlockResult } from './runBlock'
 import { default as buildBlock, BuildBlockOpts, BlockBuilder } from './buildBlock'
 import { EVMResult, ExecResult } from './evm/evm'
 import { OpcodeList, getOpcodesForHF } from './evm/opcodes'
-import { precompiles } from './evm/precompiles'
+import { addPrecompile, PrecompileFunc, precompiles } from './evm/precompiles'
 import runBlockchain from './runBlockchain'
 const AsyncEventEmitter = require('async-eventemitter')
 import { promisify } from 'util'
@@ -271,6 +271,16 @@ export default class VM extends AsyncEventEmitter {
     // We cache this promisified function as it's called from the main execution loop, and
     // promisifying each time has a huge performance impact.
     this._emit = promisify(this.emit.bind(this))
+  }
+
+  async linkPrecompile(address: Address, func: PrecompileFunc): Promise<void> {
+    addPrecompile(address, func);
+
+    await this.stateManager.checkpoint()
+    // put 1 wei in the precompile's account in order to make the account non-empty and thus not have to deduct `callNewAccount` gas.
+    const account = Account.fromAccountData({ balance: 1 })
+    await this.stateManager.putAccount(address, account)
+    await this.stateManager.commit()
   }
 
   async init(): Promise<void> {

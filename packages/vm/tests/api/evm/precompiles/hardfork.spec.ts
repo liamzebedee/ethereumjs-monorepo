@@ -2,7 +2,19 @@ import tape from 'tape'
 import { Address, BN } from 'ethereumjs-util'
 import Common, { Chain, Hardfork } from '@ethereumjs/common'
 import VM from '../../../../src'
-import { getPrecompile } from '../../../../src/evm/precompiles'
+import { getPrecompile, PrecompileInput } from '../../../../src/evm/precompiles'
+import { ExecResult } from '../../../../src/evm/evm'
+
+const PRECOMPILE_MAGIC_RETURN_VALUE = Buffer.from('42')
+const customPrecompile = function (opts: PrecompileInput): ExecResult {
+  // assert(opts.data)
+  const data = opts.data
+
+  return {
+    gasUsed: new BN(1),
+    returnValue: PRECOMPILE_MAGIC_RETURN_VALUE,
+  }
+}
 
 tape('Precompiles: hardfork availability', (t) => {
   t.test('Test ECPAIRING availability', async (st) => {
@@ -71,6 +83,37 @@ tape('Precompiles: hardfork availability', (t) => {
     })
 
     st.assert(result.gasUsed.toNumber() == 0) // check that we use no gas, because we are calling into an address without code.
+
+    st.end()
+  })
+
+  t.test('should register dynamic precompiles succesfully', async (st) => {
+    const CUSTOM_PRECOMPILE_Address = new Address(
+      Buffer.from('0000000000000000000000000000000000000042', 'hex')
+    )
+
+    const commonByzantium = new Common({ chain: Chain.Mainnet, hardfork: Hardfork.Byzantium })
+
+    let CUSTOM_PRECOMPILE = getPrecompile(CUSTOM_PRECOMPILE_Address, commonByzantium)
+
+    if (!CUSTOM_PRECOMPILE) {
+      st.pass('CUSTOM_PRECOMPILE not available until registered')
+    } else {
+      st.fail('CUSTOM_PRECOMPILE is already registered')
+    }
+
+    let vm = new VM({ common: commonByzantium })
+    vm.linkPrecompile(CUSTOM_PRECOMPILE_Address, customPrecompile)
+    
+    let result = await vm.runCall({
+      caller: Address.zero(),
+      gasLimit: new BN(0xffffffffff),
+      to: CUSTOM_PRECOMPILE_Address,
+      value: new BN(0),
+    })
+
+    st.assert(result.gasUsed.toNumber() == 1)
+    st.assert(result.execResult.returnValue.equals(PRECOMPILE_MAGIC_RETURN_VALUE))
 
     st.end()
   })
