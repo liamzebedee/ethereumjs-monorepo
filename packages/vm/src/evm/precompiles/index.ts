@@ -48,7 +48,7 @@ interface PrecompileAvailabilityCheckTypeEIP {
 }
 
 const ripemdPrecompileAddress = '0000000000000000000000000000000000000003'
-const precompiles: Precompiles = {
+let precompiles: Precompiles = {
   '0000000000000000000000000000000000000001': p1,
   '0000000000000000000000000000000000000002': p2,
   [ripemdPrecompileAddress]: p3,
@@ -69,7 +69,7 @@ const precompiles: Precompiles = {
   '0000000000000000000000000000000000000012': p12,
 }
 
-const precompileAvailability: PrecompileAvailability = {
+let precompileAvailability: PrecompileAvailability = {
   '0000000000000000000000000000000000000001': {
     type: PrecompileAvailabilityCheck.Hardfork,
     param: 'chainstart',
@@ -144,6 +144,19 @@ const precompileAvailability: PrecompileAvailability = {
   },
 }
 
+function addPrecompile(address: Address, func: PrecompileFunc) {
+  const addr = address.buf.toString('hex')
+  if (precompiles[addr]) {
+    throw new Error(`Precompile already defined at address ${address}`)
+  }
+  precompiles[addr] = func;
+  // Make precompile universally available.
+  precompileAvailability[addr] = {
+    type: PrecompileAvailabilityCheck.Hardfork,
+    param: 'chainstart',
+  }
+}
+
 function getPrecompile(address: Address, common: Common): PrecompileFunc {
   const addr = address.buf.toString('hex')
   if (precompiles[addr]) {
@@ -174,6 +187,7 @@ function getActivePrecompiles(common: Common): Address[] {
 export {
   precompiles,
   getPrecompile,
+  addPrecompile,
   PrecompileFunc,
   PrecompileInput,
   ripemdPrecompileAddress,
